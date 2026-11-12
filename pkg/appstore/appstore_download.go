@@ -28,6 +28,9 @@ type DownloadInput struct {
 	Progress          *progressbar.ProgressBar
 	ExternalVersionID string
 	Platform          Platform
+	// DisableParallelDownload keeps a large package on a single connection, so
+	// all bytes land in the destination's .tmp file as they arrive.
+	DisableParallelDownload bool
 }
 
 type DownloadOutput struct {
@@ -111,12 +114,12 @@ func (t *appstore) Download(input DownloadInput) (DownloadOutput, error) {
 	}
 
 	if packagePlatform == PlatformMacOS {
-		return t.downloadMacPackage(input.Context, item, destination, machineGUID, input.Progress)
+		return t.downloadMacPackage(input.Context, item, destination, machineGUID, input.Progress, !input.DisableParallelDownload)
 	}
 
 	tmpPath := fmt.Sprintf("%s.tmp", destination)
 
-	if err := t.downloadFile(input.Context, item.URL, tmpPath, input.Progress); err != nil {
+	if err := t.downloadFileWithOptions(input.Context, item.URL, tmpPath, input.Progress, !input.DisableParallelDownload); err != nil {
 		return DownloadOutput{}, fmt.Errorf("failed to download file: %w", err)
 	}
 
@@ -241,11 +244,15 @@ type downloadResult struct {
 }
 
 func (t *appstore) downloadFile(ctx context.Context, src, dst string, progress *progressbar.ProgressBar) error {
+	return t.downloadFileWithOptions(ctx, src, dst, progress, true)
+}
+
+func (t *appstore) downloadFileWithOptions(ctx context.Context, src, dst string, progress *progressbar.ProgressBar, parallel bool) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	err := t.downloadFileAttempt(ctx, src, dst, progress, true, "")
+	err := t.downloadFileAttempt(ctx, src, dst, progress, parallel, "")
 
 	var parallelErr *parallelDownloadError
 	if !errors.As(err, &parallelErr) || ctx.Err() != nil {

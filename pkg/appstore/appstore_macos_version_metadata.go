@@ -31,7 +31,7 @@ func (t *appstore) readVersionMetadataFromMacPackage(ctx context.Context, item d
 		if err := t.downloadFile(ctx, item.PreflightPackageURL, destination, nil); err != nil {
 			return versionMetadata{}, fmt.Errorf("failed to download Mac preflight package: %w", err)
 		}
-	} else if _, err := t.downloadMacPackage(ctx, item, destination, hardwareID, nil); err != nil {
+	} else if _, err := t.downloadMacPackage(ctx, item, destination, hardwareID, nil, true); err != nil {
 		return versionMetadata{}, err
 	}
 

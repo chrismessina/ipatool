@@ -25,6 +25,7 @@ func downloadCmdWithAppStore(appStore func() appstore.AppStore) *cobra.Command {
 		bundleID          string
 		externalVersionID string
 		platformValue     string
+		disableParallel   bool
 	)
 
 	cmd := &cobra.Command{
@@ -122,13 +123,14 @@ func downloadCmdWithAppStore(appStore func() appstore.AppStore) *cobra.Command {
 				}
 
 				out, err := store.Download(appstore.DownloadInput{
-					Context:           cmd.Context(),
-					Account:           acc,
-					App:               app,
-					OutputPath:        outputPath,
-					Progress:          progress,
-					ExternalVersionID: externalVersionID,
-					Platform:          platform,
+					Context:                 cmd.Context(),
+					Account:                 acc,
+					App:                     app,
+					OutputPath:              outputPath,
+					Progress:                progress,
+					ExternalVersionID:       externalVersionID,
+					Platform:                platform,
+					DisableParallelDownload: disableParallel,
 				})
 				if err != nil {
 					return err
@@ -173,6 +175,7 @@ func downloadCmdWithAppStore(appStore func() appstore.AppStore) *cobra.Command {
 	cmd.Flags().StringVar(&externalVersionID, "external-version-id", "", "External version identifier of the target app (defaults to latest version when not specified)")
 	cmd.Flags().StringVar(&platformValue, "platform", "", "Platform to download for: iphone (iOS), ipad (iPadOS), appletv (tvOS), watchos, visionos, or macos")
 	cmd.Flags().BoolVar(&acquireLicense, "purchase", false, "Obtain a license for the app if needed")
+	cmd.Flags().BoolVar(&disableParallel, "no-parallel", false, "Download large packages over a single connection instead of parallel ranges")
 
 	return cmd
 }

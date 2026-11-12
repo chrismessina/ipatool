@@ -64,7 +64,7 @@ var _ = Describe("AppStore (macOS download)", func() {
 		return store.downloadMacPackage(context.Background(), downloadItemResult{
 			URL:   server.URL,
 			Sinfs: []Sinf{{DPInfo: dpInfo}},
-		}, destination, hardwareID, nil)
+		}, destination, hardwareID, nil, true)
 	}
 
 	expectNoStaging := func() {
@@ -146,7 +146,7 @@ var _ = Describe("AppStore (macOS download)", func() {
 			_, err := store.downloadMacPackage(ctx, downloadItemResult{
 				URL:   cancelServer.URL,
 				Sinfs: []Sinf{{DPInfo: dpInfo}},
-			}, destination, hardwareID, nil)
+			}, destination, hardwareID, nil, true)
 			done <- err
 		}()
 
@@ -231,7 +231,7 @@ var _ = Describe("AppStore (macOS download)", func() {
 			os:                  operatingsystem.New(),
 		}
 
-		_, err := store.downloadMacPackage(context.Background(), downloadItemResult{URL: server.URL}, destination, hardwareID, nil)
+		_, err := store.downloadMacPackage(context.Background(), downloadItemResult{URL: server.URL}, destination, hardwareID, nil, true)
 
 		Expect(err).To(MatchError(ContainSubstring("dpInfo")))
 		Expect(factoryCalled).To(BeFalse())

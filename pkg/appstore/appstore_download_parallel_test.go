@@ -163,6 +163,17 @@ var _ = Describe("automatic parallel downloads", func() {
 		Expect(fixture.recordedRequests()).To(HaveLen(1))
 	})
 
+	It("uses one request when parallel downloads are disabled", func() {
+		fixture := newParallelDownloadFixture(parallelDownloadThreshold * 2)
+		progress := progressbar.NewOptions64(1, progressbar.OptionSetWriter(io.Discard))
+
+		Expect(fixture.store.downloadFileWithOptions(context.Background(), fixture.server.URL, fixture.path, progress, false)).To(Succeed())
+		fixture.expectContents(1)
+		Expect(fixture.recordedRequests()).To(HaveLen(1))
+		Expect(fixture.maximum.Load()).To(Equal(int64(1)))
+		Expect(progress.State().CurrentNum).To(Equal(fixture.size))
+	})
+
 	It("uses one request for a small file", func() {
 		fixture := newParallelDownloadFixture(64 << 10)
 

@@ -32,6 +32,7 @@ func (t *appstore) downloadMacPackage(
 	destination string,
 	hardwareID []byte,
 	progress *progressbar.ProgressBar,
+	parallel bool,
 ) (_ DownloadOutput, err error) {
 	dpInfo, err := macDPInfo(item.Sinfs)
 	if err != nil {
@@ -58,7 +59,7 @@ func (t *appstore) downloadMacPackage(
 		}
 	}()
 
-	if err := t.downloadFile(ctx, item.URL, encryptedPath, progress); err != nil {
+	if err := t.downloadFileWithOptions(ctx, item.URL, encryptedPath, progress, parallel); err != nil {
 		return DownloadOutput{}, fmt.Errorf("failed to download file: %w", err)
 	}
 
