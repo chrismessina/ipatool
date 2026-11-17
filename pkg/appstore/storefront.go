@@ -39,11 +39,16 @@ type storefrontGenrePage struct {
 }
 
 func (t *appstore) countryCodeFromStoreFront(storeFront string) (string, error) {
+	identifier := storefrontIdentifier(storeFront)
+
 	if err := t.discoverAvailableStorefronts(); err != nil {
+		if countryCode, ok := fallbackStorefrontCountryCodes[identifier]; ok {
+			return countryCode, nil
+		}
+
 		return "", err
 	}
 
-	identifier := storefrontIdentifier(storeFront)
 	if countryCode := t.cachedStorefrontCountryCode(identifier); countryCode != "" {
 		return countryCode, nil
 	}
@@ -64,7 +69,13 @@ func (t *appstore) storefrontID(countryCode string) string {
 	t.storefrontsMu.Lock()
 	defer t.storefrontsMu.Unlock()
 
-	for identifier, code := range t.storefrontCountryCodes {
+	storefronts := t.storefrontCountryCodes
+	// A nil cache means discovery has not succeeded, so use the fallback.
+	if storefronts == nil {
+		storefronts = fallbackStorefrontCountryCodes
+	}
+
+	for identifier, code := range storefronts {
 		if code == countryCode {
 			return identifier
 		}
@@ -74,11 +85,16 @@ func (t *appstore) storefrontID(countryCode string) string {
 }
 
 func (t *appstore) discoverStorefrontID(countryCode string) (string, error) {
+	countryCode = strings.ToUpper(strings.TrimSpace(countryCode))
+
 	if err := t.discoverAvailableStorefronts(); err != nil {
+		if identifier := t.storefrontID(countryCode); identifier != "" {
+			return identifier, nil
+		}
+
 		return "", err
 	}
 
-	countryCode = strings.ToUpper(strings.TrimSpace(countryCode))
 	if identifier := t.storefrontID(countryCode); identifier != "" {
 		return identifier, nil
 	}

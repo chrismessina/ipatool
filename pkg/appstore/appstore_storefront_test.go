@@ -94,10 +94,60 @@ var _ = Describe("App Store storefront data", func() {
 				client.EXPECT().Send(gomock.Any()).Return(http.Result[[]byte]{StatusCode: 200, Data: availableStorefrontsFixture()}, nil),
 			)
 
-			_, err := store.countryCodeFromStoreFront("143441")
+			_, err := store.countryCodeFromStoreFront("999999")
 			Expect(err).To(MatchError(ContainSubstring("available storefronts request failed")))
 			Expect(errors.Is(err, requestErr)).To(BeTrue())
 			Expect(store.countryCodeFromStoreFront("143441")).To(Equal("US"))
+		})
+
+		DescribeTable("falls back to the built-in storefronts when discovery fails", func(status int, body []byte) {
+			client := http.NewMockClient[[]byte](gomock.NewController(GinkgoT()))
+			store := &appstore{storefrontClient: client}
+			client.EXPECT().Send(gomock.Any()).Return(http.Result[[]byte]{StatusCode: status, Data: body}, nil).Times(2)
+
+			Expect(store.countryCodeFromStoreFront("143441-1,34")).To(Equal("US"))
+			Expect(store.countryCodeFromStoreFront("143465")).To(Equal("CN"))
+		},
+			Entry("HTTP 404", 404, nil),
+			Entry("malformed plist", 200, []byte("not a plist")),
+			Entry("empty storefront list", 200, []byte(`<plist><dict><key>storefronts</key><array/></dict></plist>`)),
+		)
+
+		It("falls back to the built-in storefronts when the request errors", func() {
+			client := http.NewMockClient[[]byte](gomock.NewController(GinkgoT()))
+			store := &appstore{storefrontClient: client}
+			client.EXPECT().Send(gomock.Any()).Return(http.Result[[]byte]{}, errors.New("connection reset"))
+
+			Expect(store.countryCodeFromStoreFront("143443")).To(Equal("DE"))
+		})
+
+		It("does not fall back to inactive storefronts", func() {
+			client := http.NewMockClient[[]byte](gomock.NewController(GinkgoT()))
+			store := &appstore{storefrontClient: client}
+			client.EXPECT().Send(gomock.Any()).Return(http.Result[[]byte]{StatusCode: 404}, nil)
+
+			_, err := store.countryCodeFromStoreFront("143490")
+
+			Expect(err).To(MatchError(ContainSubstring("available storefronts request failed")))
+		})
+
+		It("falls back to the built-in storefronts for phone login", func() {
+			client := http.NewMockClient[[]byte](gomock.NewController(GinkgoT()))
+			store := &appstore{storefrontClient: client}
+			client.EXPECT().Send(gomock.Any()).Return(http.Result[[]byte]{StatusCode: 404}, nil)
+
+			Expect(store.discoverStorefrontID(" cn ")).To(Equal("143465"))
+		})
+
+		It("sends the fallback storefront with a phone login request", func() {
+			client := http.NewMockClient[[]byte](gomock.NewController(GinkgoT()))
+			store := &appstore{storefrontClient: client}
+			client.EXPECT().Send(gomock.Any()).Return(http.Result[[]byte]{StatusCode: 404}, nil)
+
+			Expect(store.discoverStorefrontID("CN")).To(Equal("143465"))
+
+			request := store.loginRequest("+8613912345678", "password", "", "guid", "https://example.com", 1, nil)
+			Expect(request.Headers).To(HaveKeyWithValue("X-Apple-Store-Front", "143465"))
 		})
 
 		DescribeTable("resolves storefronts omitted from the available list", func(identifier, countryCode string) {
@@ -172,7 +222,7 @@ var _ = Describe("App Store storefront data", func() {
 			store := &appstore{storefrontClient: client}
 			client.EXPECT().Send(gomock.Any()).Return(http.Result[[]byte]{StatusCode: status, Data: body}, nil)
 
-			_, err := store.countryCodeFromStoreFront("143441")
+			_, err := store.countryCodeFromStoreFront("999999")
 
 			Expect(err).To(MatchError(ContainSubstring(message)))
 		},
